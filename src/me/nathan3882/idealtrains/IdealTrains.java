@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package idealtrains;
+package me.nathan3882.idealtrains;
 
 import com.thalesgroup.rtti._2017_10_01.ldbsv.types.ArrayOfCoaches;
 
