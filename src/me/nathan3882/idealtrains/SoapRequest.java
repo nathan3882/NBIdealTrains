@@ -5,7 +5,6 @@
  */
 package me.nathan3882.idealtrains;
 
-import com.thalesgroup.rtti._2017_10_01.ldbsv.GetBoardByCRSParams;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.bind.JAXBContext;
@@ -47,14 +46,14 @@ public class SoapRequest {
         } catch (JAXBException ex) {
             Logger.getLogger(SoapRequest.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+
         return generatedDoc;
     }
     private final SOAPMessage request;
-    private final String action;
+    private final String actionString;
 
     public SoapRequest(Action action, Document generatedRequestAsDoc) throws SOAPException {
-        this.action = action.getActionString();
+        this.actionString = action.getActionString();
         MessageFactory messageFactory = MessageFactory.newInstance(SOAPConstants.SOAP_1_2_PROTOCOL);
         SOAPMessage soapMessage = messageFactory.createMessage();
         SOAPPart soapPart = soapMessage.getSOAPPart();
@@ -68,17 +67,17 @@ public class SoapRequest {
                 addHeaderElement(new QName("http://thalesgroup.com/RTTI/2013-11-28/Token/types", "AccessToken")).
                 addChildElement("typ:TokenValue").
                 addTextNode(getTokenValue());
-        soapMessage.getMimeHeaders().addHeader("Content-type", "application/soap+xml;charset=UTF-8;action=" + createSoapAction(action, false));
+        soapMessage.getMimeHeaders().addHeader("Content-type", "application/soap+xml;charset=UTF-8;action=" + createSoapAction(getActionString(), false));
         soapMessage.getMimeHeaders().addHeader("Accept-encoding", "gzip, x-gzip, deflate, x-bzip2");
 
-        soapMessage.getMimeHeaders().addHeader("SOAPAction", "http://thalesgroup.com/RTTI/2017-10-01/ldb/ " + createSoapAction(action, true));
+        soapMessage.getMimeHeaders().addHeader("SOAPAction", "http://thalesgroup.com/RTTI/2017-10-01/ldb/ " + createSoapAction(getActionString(), true));
 
         soapMessage.getSOAPBody().addDocument(generatedRequestAsDoc); //adding the generated request by jax client to the body
 
         soapMessage.saveChanges();
         this.request = soapMessage;
     }
-    
+
     private static String createSoapAction(String action, boolean appendRequest) {
         return action + (appendRequest ? "Request" : "");
     }
@@ -135,10 +134,11 @@ public class SoapRequest {
         }
     }
 
-    public String getAction() {
-        return action;
+    public String getActionString() {
+        return actionString;
     }
+
     public String getResponseString() {
-        return getAction() + "Response";
+        return getActionString() + "Response";
     }
 }
