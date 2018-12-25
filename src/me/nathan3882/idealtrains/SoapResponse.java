@@ -87,16 +87,29 @@ public class SoapResponse {
         this.action = action;
     }
 
-    public JSONArray getTrainServices() {
+    /**
+     * @return a singular JSONObject if only one service availabe or a JSONArray
+     */
+    public Object getTrainServices() {
         switch (getResponseString()) {
             case "GetDepartureBoardByCRSResponse":
                 JSONObject withResponseString = bodyToJson();
                 JSONObject withGetBoardResult = withResponseString.getJSONObject(getResponseString());
                 JSONObject withTrainServices = withGetBoardResult.getJSONObject("GetBoardResult");
-
-                JSONObject trainServicesFromCrs = withTrainServices.getJSONObject("t12:trainServices");
-                JSONArray serviceArray = trainServicesFromCrs.getJSONArray("t12:service");
-                return serviceArray;
+                JSONObject trainServicesFromCrs = null;
+                try {
+                    trainServicesFromCrs = withTrainServices.getJSONObject("t12:trainServices");
+                } catch (org.json.JSONException e) {
+                    System.err.println("There are no trains running");
+                    return null;
+                }
+                Object serviceArray = trainServicesFromCrs.get("t12:service");
+                if (serviceArray instanceof JSONArray) {
+                    return (JSONArray) serviceArray;
+                } else if (serviceArray instanceof JSONObject) {
+                    return (JSONObject) serviceArray;
+                }
+                return null;
         }
         return null;
     }
