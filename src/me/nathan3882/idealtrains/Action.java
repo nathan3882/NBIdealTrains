@@ -18,7 +18,7 @@ import javax.xml.bind.JAXBElement;
  */
 public class Action {
 
-    private final String actionString;
+    private String actionString;
     private final Object objectFactory;
 
     public Object getObjectFactory() {
@@ -53,5 +53,9 @@ public class Action {
         }
         JAXBElement<?> element = (JAXBElement<?>) invokedResponse;
         return element;
+    }
+
+    public void setAction(String actionString) {
+        this.actionString = actionString;
     }
 }
