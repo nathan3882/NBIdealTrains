@@ -20,16 +20,18 @@ public class Action {
 
     private String actionString;
     private final Object objectFactory;
+    private Service.ServiceType serviceType;
 
     public Object getObjectFactory() {
         return objectFactory;
     }
     private final String response;
 
-    public Action(Object objectFactory, String getString) {
+    public Action(Object objectFactory, String getString, Service.ServiceType serviceType) {
         this.actionString = getString;
         this.objectFactory = objectFactory;
         this.response = getString + "Response";
+        this.serviceType = serviceType;
     }
 
     public String getActionString() {
@@ -57,5 +59,13 @@ public class Action {
 
     public void setAction(String actionString) {
         this.actionString = actionString;
+    }
+
+    public Service.ServiceType getServiceType() {
+        return this.serviceType;
+    }
+
+    public void setServiceType(Service.ServiceType serviceType) {
+        this.serviceType = serviceType;
     }
 }

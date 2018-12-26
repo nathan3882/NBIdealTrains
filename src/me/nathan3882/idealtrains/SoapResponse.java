@@ -53,7 +53,7 @@ public class SoapResponse {
         return body;
     }
 
-    private String formatSoapMessage(SOAPPart part) {
+    public String formatSoapMessage(SOAPPart part) {
         try {
             final TransformerFactory transformerFactory = TransformerFactory.newInstance();
             final Transformer transformer = transformerFactory.newTransformer();
@@ -93,6 +93,7 @@ public class SoapResponse {
     public Object getTrainServices() {
         switch (getResponseString()) {
             case "GetDepartureBoardByCRSResponse":
+            case "GetArrivalBoardByCRSResponse":
                 JSONObject withResponseString = bodyToJson();
                 JSONObject withGetBoardResult = withResponseString.getJSONObject(getResponseString());
                 JSONObject withTrainServices = withGetBoardResult.getJSONObject("GetBoardResult");
