@@ -11,7 +11,6 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
-import javax.xml.datatype.XMLGregorianCalendar;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -31,25 +30,6 @@ import org.w3c.dom.Document;
  */
 public class SoapRequest {
 
-    public static String TOKEN;
-
-    public static Document generateDoc(JAXBElement<?> element) {
-        Class elementClass = element.getDeclaredType();
-        Document generatedDoc = null;
-        try {
-            JAXBContext jaxbContext = JAXBContext.newInstance(elementClass);
-            generatedDoc = getMarshalledDocument(element, jaxbContext);
-            if (generatedDoc == null) {
-                System.out.println("Could not marshall, terminating...");
-                return null;
-            }
-            return generatedDoc;
-        } catch (JAXBException ex) {
-            Logger.getLogger(SoapRequest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-        return generatedDoc;
-    }
     private final SOAPMessage request;
     private final String actionString;
 
@@ -110,10 +90,6 @@ public class SoapRequest {
         return IdealTrains.AUTHENTICATION_TOKEN;
     }
 
-    public static void setToken(String token) {
-        TOKEN = token;
-    }
-
     private SOAPMessage getRequest() {
         return this.request;
     }
@@ -139,6 +115,24 @@ public class SoapRequest {
         return actionString;
     }
 
+    public static Document generateDoc(JAXBElement<?> element) {
+        Class elementClass = element.getDeclaredType();
+        Document generatedDoc = null;
+        try {
+            JAXBContext jaxbContext = JAXBContext.newInstance(elementClass);
+            generatedDoc = getMarshalledDocument(element, jaxbContext);
+            if (generatedDoc == null) {
+                System.out.println("Could not marshall, terminating...");
+                return null;
+            }
+            return generatedDoc;
+        } catch (JAXBException ex) {
+            Logger.getLogger(SoapRequest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        return generatedDoc;
+    }
+    
     public String getResponseString() {
         return getActionString() + "Response";
     }
