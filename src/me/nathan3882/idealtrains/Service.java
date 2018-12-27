@@ -48,7 +48,6 @@ public class Service {
             XMLGregorianCalendar eta,
             XMLGregorianCalendar sdt,
             XMLGregorianCalendar etd,
-            int platform,
             String operatorCode,
             String operator, String fromCrs, String toCrs) {
 
@@ -90,13 +89,12 @@ public class Service {
             //int length = (int) jsonObject.get("t12:length");
             String operatorCode = (String) jsonObject.get("t10:operatorCode");
             String operator = (String) jsonObject.get("t10:operator");
-            int platform = (int) jsonObject.get("t10:platform");
             //boolean crossCountry = //is picadilly etc
             try {
                 return new Service(rid, serviceType,
                         xmlGregCalFromString(sta), xmlGregCalFromString(eta),
                         xmlGregCalFromString(sdt), xmlGregCalFromString(edt),
-                        platform, operatorCode, operator, fromCrs, toCrs);
+                        operatorCode, operator, fromCrs, toCrs);
             } catch (ParseException e) {
                 e.printStackTrace();
                 return null;
