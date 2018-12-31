@@ -24,6 +24,12 @@ import org.json.JSONObject;
  */
 public class Service {
 
+    public enum ServiceType {
+        ARRIVING_TO_BROCK,
+        DEPARTING_FROM_HOME,
+        HALF_AND_HALF //Departures is from HOME, arrivals is to BROCK
+    }
+
     private final long rid;
     private XMLGregorianCalendar sdt;
     private XMLGregorianCalendar etd;
@@ -34,6 +40,7 @@ public class Service {
     private ServiceType serviceType;
     private String fromCrs = "Not Set";
     private String toCrs = "Not Set";
+    private long toSpareMinutes;
 
     public void setToCrs(String toCrs) {
         this.toCrs = toCrs;
@@ -86,10 +93,8 @@ public class Service {
             String edt = (String) jsonObject.get("t10:etd");
             String sta = (String) jsonObject.get("t10:sta");
             String eta = (String) jsonObject.get("t10:eta");
-            //int length = (int) jsonObject.get("t12:length");
             String operatorCode = (String) jsonObject.get("t10:operatorCode");
             String operator = (String) jsonObject.get("t10:operator");
-            //boolean crossCountry = //is picadilly etc
             try {
                 return new Service(rid, serviceType,
                         xmlGregCalFromString(sta), xmlGregCalFromString(eta),
@@ -161,14 +166,16 @@ public class Service {
     public String getFromCrs() {
         return this.fromCrs;
     }
+
     public void setFromCrs(String fromCrs) {
         this.fromCrs = fromCrs;
     }
 
-    public enum ServiceType {
-        ARRIVING_TO_BROCK,
-        DEPARTING_FROM_HOME,
-        HALF_AND_HALF //Departures is from HOME, arrivals is to BROCK
+    public long getToSpareMinutes() {
+        return toSpareMinutes;
     }
 
+    public void setToSpareMinutes(long toSpareMinutes) {
+        this.toSpareMinutes = toSpareMinutes;
+    }
 }
