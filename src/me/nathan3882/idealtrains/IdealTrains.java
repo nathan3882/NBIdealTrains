@@ -11,8 +11,6 @@ import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.jws.WebService;
 import javax.xml.bind.JAXBElement;
 import javax.xml.datatype.DatatypeFactory;
@@ -27,31 +25,9 @@ public class IdealTrains {
 
     public static final String STAFF_WEBSERVICE_URL = "https://lite.realtime.nationalrail.co.uk/OpenLDBSVWS/wsdl.aspx?ver=2017-10-01";
     public static final String STAFF_WEBSERVICE_ENDPOINT = "https://lite.realtime.nationalrail.co.uk/OpenLDBSVWS/ldbsv12.asmx";
-    public static final String AUTHENTICATION_TOKEN = "ed126cc4-bfec-4a9e-9686-0d41823c6399";
+    public static final String AUTHENTICATION_TOKEN = "";
 
-    public static final String CRS_CODE_BOURNEMOUTH = "BMH";
-    public static final String CRS_CODE_POOLE = "POO";
     public static final String CRS_CODE_BROCKENHURST = "BCU";
-
-    public static List<String> crsCodes = new ArrayList<>(Arrays.asList(CRS_CODE_BOURNEMOUTH, CRS_CODE_BROCKENHURST));
-
-    public static void main(String args[]) {
-
-        Calendar cal = Calendar.getInstance();
-        Date datereal = cal.getTime();
-        Date date = new Date(datereal.getTime() + TimeUnit.DAYS.toMillis(1)); //One hr time
-        Date lessonTime = new Date(date.getTime() + TimeUnit.HOURS.toMillis(1)); //One hr time
-        List<Service> services = new ArrayList<>();
-        try {
-            services = getHomeToLessonServices(
-                    CRS_CODE_BOURNEMOUTH, CRS_CODE_BROCKENHURST, date, 15, 60, lessonTime);
-        } catch (SOAPException ex) {
-            Logger.getLogger(IdealTrains.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        if (services.isEmpty()) {
-            //No services
-        }
-    }
 
     //VAR validRID
     //FOREACH departure time of bournemouth trains AS 'bmouthTrain':
@@ -62,26 +38,24 @@ public class IdealTrains {
     //    IF xTrainArrivalTime gives enough time to get to lesson:
     //      IF (bmouthTrainRID == xTrainRID):
     //        validRID.add(bmouthTrainRID)
-    
     /**
-     * 
+     *
      * @param startCrs where the users home station is
      * @param toCrs to this college / work station
      * @param fromWhen current time of request
-     * @param beforeThisGapBetweenLessonInMins if fifteen, get services that arrive 15 mins before lesson time
-     * @param andAboveThisGapBetweenLessonInMins if 60, get services that arrive 15 and 60 minutes before lesson.
+     * @param walkTimeSeconds if fifteen, get services that arrive 15 mins
+     * before lesson time
      * @param lessonTime when your lesson time is
      * @return valid services
      * @
      */
-    public static List<Service> getHomeToLessonServices(String startCrs, String toCrs, Date fromWhen, int beforeThisGapBetweenLessonInMins, int andAboveThisGapBetweenLessonInMins, Date lessonTime) throws SOAPException {
+    public static List<Service> getHomeToLessonServices(String startCrs, String toCrs, Date fromWhen, int walkTimeSeconds, Date lessonTime) throws SOAPException {
         if (startCrs.equals(toCrs)) {
             throw new UnsupportedOperationException("Can't see arrival time from Brock to Brock... come on..");
         }
         LinkedList<Service> validMixedServices = new LinkedList<>();
 
         ObjectFactory factory = new com.thalesgroup.rtti._2017_10_01.ldbsv.ObjectFactory();
-
         GetBoardByCRSParams params = createBoardByCRSParams(factory, startCrs, fromWhen);
 
         Action action = new Action(factory, "GetDepartureBoardByCRS", ServiceType.DEPARTING_FROM_HOME);
@@ -133,30 +107,57 @@ public class IdealTrains {
         ///////ARRIVALS///////
 
         ///////Getting valid services///////
-        System.out.println(departuresFromStartCrs.size());
+        Calendar calendar = GregorianCalendar.getInstance();
         for (Service departureService : departuresFromStartCrs) {
             long departureServiceRID = departureService.getRid();
             for (Service arrivalService : allArrivalsToBrock) {
                 long arrivalServiceRID = arrivalService.getRid();
                 if (departureServiceRID == arrivalServiceRID) {
                     //Service came from initial CRS and arrives at brock
-                    Date eta = arrivalService.getEta().toGregorianCalendar().getTime();
-                    long etaMillis = eta.getTime();
+                    XMLGregorianCalendar xmlEta = arrivalService.getEta();
+                    XMLGregorianCalendar xmlSta = arrivalService.getSta();
+                    XMLGregorianCalendar xmlEtd = arrivalService.getEtd();
+                    XMLGregorianCalendar xmlSdt = arrivalService.getSdt();
+                    Date arrivalDate = null;
+                    if (xmlEta != null) {
+                        arrivalDate = xmlEta.toGregorianCalendar().getTime();
+                    } else if (xmlSta != null) {
+                        arrivalDate = xmlSta.toGregorianCalendar().getTime();
+                    }
+                    if (xmlEtd != null) {
+                        arrivalDate = xmlEtd.toGregorianCalendar().getTime();
+                    } else if (xmlSdt != null) {
+                        arrivalDate = xmlSdt.toGregorianCalendar().getTime();
+                    }
+                    if (arrivalDate == null) {
+                        continue;
+                    } //Sometimes is null? cant really do much?
+                    calendar.setTime(arrivalDate);
+                    int hod = calendar.get(Calendar.HOUR_OF_DAY);
+                    if (hod > 16 || hod < 8) continue;
+                    long arrivalTimeMillis = arrivalDate.getTime();
 
-                    long lessonMillis = lessonTime.getTime();
-                    long lessonTakeLeeway = lessonMillis - TimeUnit.SECONDS.toMillis(beforeThisGapBetweenLessonInMins);
-                    long toSpareMinutes = TimeUnit.MILLISECONDS.toMinutes(lessonMillis - etaMillis);
-                    if (etaMillis <= lessonTakeLeeway) { //arrives within an hour and 15 minutes before lesson
+                    long lessonTimeMillis = lessonTime.getTime();
+                    long toSpareMinutes = TimeUnit.MILLISECONDS.toMinutes(lessonTimeMillis - arrivalTimeMillis);
+                    long walkTimeMinutes = TimeUnit.SECONDS.toMinutes(walkTimeSeconds);
+
+                    if (toSpareMinutes >= walkTimeMinutes) { //arrives within an hour and 15 minutes before lesson
                         Service arrivalDuplicate = arrivalService;
+                        arrivalDuplicate.setToSpareMinutes(toSpareMinutes);
                         arrivalDuplicate.setServiceType(ServiceType.HALF_AND_HALF);
                         arrivalDuplicate.setFromCrs(departureService.getFromCrs());
                         arrivalDuplicate.setSdt(departureService.getSdt());
                         arrivalDuplicate.setEtd(departureService.getEtd());
                         validMixedServices.add(arrivalDuplicate);
-                        System.out.println("A service from " + arrivalDuplicate.getFromCrs() + " departs at " + arrivalDuplicate.getEtd()+ ""
+                        System.out.println("A service from " + arrivalDuplicate.getFromCrs() + " departs at " + arrivalDuplicate.getEtd() + ""
                                 + " will arrive at " + arrivalService.getToCrs() + " at " + arrivalDuplicate.getEta()
                                 + " in order to get to brock " + toSpareMinutes + " minutes before your lesson at " + lessonTime.toString());
 
+                    } else {
+                        System.out.println(" ");
+                        System.out.println("to spare millis to minutes (" + lessonTimeMillis + " - " + arrivalTimeMillis + " not bigger than walk time minutes = " + walkTimeMinutes);
+                        System.out.println("eta to brock = " + arrivalDate);
+                        System.out.println(" ");
                     }
                 }
             }
