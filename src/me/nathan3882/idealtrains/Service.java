@@ -25,7 +25,7 @@ import org.json.JSONObject;
 public class Service {
 
     public enum ServiceType {
-        ARRIVING_TO_BROCK,
+        ARRIVING_TO_END,
         DEPARTING_FROM_HOME,
         HALF_AND_HALF //Departures is from HOME, arrivals is to BROCK
     }
