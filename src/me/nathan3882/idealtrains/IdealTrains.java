@@ -11,6 +11,8 @@ import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.jws.WebService;
 import javax.xml.bind.JAXBElement;
 import javax.xml.datatype.DatatypeFactory;
@@ -49,7 +51,25 @@ public class IdealTrains {
      * @return valid services
      * @
      */
-    public static List<Service> getHomeToLessonServices(String startCrs, String toCrs, Date fromWhen, int walkTimeSeconds, Date lessonTime) throws SOAPException {
+    public static void main(String args[]) {
+
+        Calendar cal = Calendar.getInstance();
+        Date datereal = cal.getTime();
+        Date date = new Date(datereal.getTime() + TimeUnit.DAYS.toMillis(1)); //One hr time
+        Date lessonTime = new Date(date.getTime() + TimeUnit.HOURS.toMillis(1)); //One hr time
+        List<Service> services = new ArrayList<>();
+        try {
+            services = getHomeToLessonServices(
+                    "BMH", CRS_CODE_BROCKENHURST, date, 8 * 60, lessonTime, 60);
+        } catch (SOAPException ex) {
+            Logger.getLogger(IdealTrains.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        if (services.isEmpty()) {
+            //No services
+        }
+    }
+
+    public static LinkedList<Service> getHomeToLessonServices(String startCrs, String toCrs, Date fromWhen, int walkTimeSeconds, Date lessonTime, int capMinutes) throws SOAPException {
         if (startCrs.equals(toCrs)) {
             throw new UnsupportedOperationException("Can't see arrival time from Brock to Brock... come on..");
         }
@@ -85,7 +105,7 @@ public class IdealTrains {
         ///////ARRIVALS///////
         params.setCrs(toCrs); //Parameters for brock
         action.setAction("GetArrivalBoardByCRS"); //Arrival board for brock
-        action.setServiceType(ServiceType.ARRIVING_TO_BROCK);
+        action.setServiceType(ServiceType.ARRIVING_TO_END);
 
         JAXBElement<GetBoardByCRSParams> arrivalToBrockRequest
                 = (JAXBElement<GetBoardByCRSParams>) action.doParams(params);
@@ -134,14 +154,16 @@ public class IdealTrains {
                     } //Sometimes is null? cant really do much?
                     calendar.setTime(arrivalDate);
                     int hod = calendar.get(Calendar.HOUR_OF_DAY);
-                    if (hod > 16 || hod < 8) continue;
+                    if (hod > 16 || hod < 8) {
+                        continue;
+                    }
                     long arrivalTimeMillis = arrivalDate.getTime();
 
                     long lessonTimeMillis = lessonTime.getTime();
                     long toSpareMinutes = TimeUnit.MILLISECONDS.toMinutes(lessonTimeMillis - arrivalTimeMillis);
                     long walkTimeMinutes = TimeUnit.SECONDS.toMinutes(walkTimeSeconds);
 
-                    if (toSpareMinutes >= walkTimeMinutes) { //arrives within an hour and 15 minutes before lesson
+                    if (toSpareMinutes >= walkTimeMinutes && toSpareMinutes <= walkTimeMinutes + capMinutes) { //arrives within 15-(15 + 60) minutes before lesson
                         Service arrivalDuplicate = arrivalService;
                         arrivalDuplicate.setToSpareMinutes(toSpareMinutes);
                         arrivalDuplicate.setServiceType(ServiceType.HALF_AND_HALF);
@@ -149,15 +171,16 @@ public class IdealTrains {
                         arrivalDuplicate.setSdt(departureService.getSdt());
                         arrivalDuplicate.setEtd(departureService.getEtd());
                         validMixedServices.add(arrivalDuplicate);
-                        System.out.println("A service from " + arrivalDuplicate.getFromCrs() + " departs at " + arrivalDuplicate.getEtd() + ""
-                                + " will arrive at " + arrivalService.getToCrs() + " at " + arrivalDuplicate.getEta()
-                                + " in order to get to brock " + toSpareMinutes + " minutes before your lesson at " + lessonTime.toString());
-
+                        System.out.println(toSpareMinutes + " >= " + walkTimeMinutes + " && " + toSpareMinutes + " <= " + (walkTimeMinutes + 60));
+//A service from POO 
+//departs at 2019-01-15T13:37:00.000Z
+//will arrive at BCU at 2019-01-15T13:04:00.000Z
+//in order to get to brock 65 minutes before your lesson at Tue Jan 15 14:10:00 GMT 2019
                     } else {
-                        System.out.println(" ");
-                        System.out.println("to spare millis to minutes (" + lessonTimeMillis + " - " + arrivalTimeMillis + " not bigger than walk time minutes = " + walkTimeMinutes);
-                        System.out.println("eta to brock = " + arrivalDate);
-                        System.out.println(" ");
+                        //System.out.println(" ");
+                        //System.out.println("to spare millis to minutes (" + lessonTimeMillis + " - " + arrivalTimeMillis + " not bigger than walk time minutes = " + walkTimeMinutes);
+//                        System.out.println("eta to brock = " + arrivalDate);
+//                        System.out.println(" ");
                     }
                 }
             }
