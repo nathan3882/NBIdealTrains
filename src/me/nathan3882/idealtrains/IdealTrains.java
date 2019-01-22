@@ -4,7 +4,6 @@ import com.thalesgroup.rtti._2007_10_10.ldb.commontypes.FilterType;
 import com.thalesgroup.rtti._2017_10_01.ldbsv.GetBoardByCRSParams;
 import com.thalesgroup.rtti._2017_10_01.ldbsv.ObjectFactory;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -60,7 +59,7 @@ public class IdealTrains {
         List<Service> services = new ArrayList<>();
         try {
             services = getHomeToLessonServices(
-                    "BMH", CRS_CODE_BROCKENHURST, date, 8 * 60, lessonTime, 60);
+                    "BMH", CRS_CODE_BROCKENHURST, date, 8 * 60, lessonTime, 120);
         } catch (SOAPException ex) {
             Logger.getLogger(IdealTrains.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -73,119 +72,21 @@ public class IdealTrains {
         if (startCrs.equals(toCrs)) {
             throw new UnsupportedOperationException("Can't see arrival time from Brock to Brock... come on..");
         }
-        LinkedList<Service> validMixedServices = new LinkedList<>();
 
         ObjectFactory factory = new com.thalesgroup.rtti._2017_10_01.ldbsv.ObjectFactory();
-        GetBoardByCRSParams params = createBoardByCRSParams(factory, startCrs, fromWhen);
 
+        GetBoardByCRSParams params = createBoardByCRSParams(factory, startCrs, fromWhen);
         Action action = new Action(factory, "GetDepartureBoardByCRS", ServiceType.DEPARTING_FROM_HOME);
 
-        JAXBElement<GetBoardByCRSParams> fromInitialCrsRequest
-                = (JAXBElement<GetBoardByCRSParams>) action.doParams(params);
-        SoapRequest departureRequest = new SoapRequest(action, SoapRequest.generateDoc(fromInitialCrsRequest));
-        SoapResponse departureResponse = departureRequest.sendRequestForResponse();
-        departureResponse.setAction(departureRequest.getActionString());
+        LinkedList<Service> departuresFromStartCrs = getDepartures(params, action, factory, startCrs, fromWhen);
 
-        Object jsonFromStartServices = departureResponse.getTrainServices();
-
-        if (jsonFromStartServices == null) {
-            return validMixedServices; //empty
-        }
-        List<Service> departuresFromStartCrs = new ArrayList<>();
-        if (jsonFromStartServices instanceof JSONArray) { //multiple trains
-            ((JSONArray) jsonFromStartServices)
-                    .toList().forEach(aJSONObjectService -> {
-                        Service service = Service.fromJSONObject(aJSONObjectService, action.getServiceType(), startCrs, "departure");
-                        departuresFromStartCrs.add(service);
-                    });
-        } else { //singular train service.
-            departuresFromStartCrs.add(Service.fromJSONObject((JSONObject) jsonFromStartServices, action.getServiceType(), startCrs, "departure"));
-        }
-
-        ///////ARRIVALS///////
         params.setCrs(toCrs); //Parameters for brock
         action.setAction("GetArrivalBoardByCRS"); //Arrival board for brock
         action.setServiceType(ServiceType.ARRIVING_TO_END);
+        LinkedList<Service> arrivalsToEnd = getArrivals(params, action, factory, toCrs, lessonTime);
 
-        JAXBElement<GetBoardByCRSParams> arrivalToBrockRequest
-                = (JAXBElement<GetBoardByCRSParams>) action.doParams(params);
-        SoapRequest arrivalRequest = new SoapRequest(action, SoapRequest.generateDoc(arrivalToBrockRequest));
-        SoapResponse arrivalResponse = arrivalRequest.sendRequestForResponse();
-
-        arrivalResponse.setAction(arrivalRequest.getActionString());
-        Object arrivalsToBrockServices = arrivalResponse.getTrainServices();
-
-        List<Service> allArrivalsToBrock = new ArrayList<>();
-        if (arrivalsToBrockServices instanceof JSONArray) { //multiple train services
-            ((JSONArray) arrivalsToBrockServices).toList().forEach(aJSONObjectService -> {
-                Service service = Service.fromJSONObject(aJSONObjectService, action.getServiceType(), "arrival", toCrs);
-                allArrivalsToBrock.add(service);
-            });
-        } else { //singular train service.
-            allArrivalsToBrock.add(Service.fromJSONObject((JSONObject) arrivalsToBrockServices, action.getServiceType(), "arrival", toCrs));
-        }
-        ///////ARRIVALS///////
-
-        ///////Getting valid services///////
-        Calendar calendar = GregorianCalendar.getInstance();
-        for (Service departureService : departuresFromStartCrs) {
-            long departureServiceRID = departureService.getRid();
-            for (Service arrivalService : allArrivalsToBrock) {
-                long arrivalServiceRID = arrivalService.getRid();
-                if (departureServiceRID == arrivalServiceRID) {
-                    //Service came from initial CRS and arrives at brock
-                    XMLGregorianCalendar xmlEta = arrivalService.getEta();
-                    XMLGregorianCalendar xmlSta = arrivalService.getSta();
-                    XMLGregorianCalendar xmlEtd = arrivalService.getEtd();
-                    XMLGregorianCalendar xmlSdt = arrivalService.getSdt();
-                    Date arrivalDate = null;
-                    if (xmlEta != null) {
-                        arrivalDate = xmlEta.toGregorianCalendar().getTime();
-                    } else if (xmlSta != null) {
-                        arrivalDate = xmlSta.toGregorianCalendar().getTime();
-                    }
-                    if (xmlEtd != null) {
-                        arrivalDate = xmlEtd.toGregorianCalendar().getTime();
-                    } else if (xmlSdt != null) {
-                        arrivalDate = xmlSdt.toGregorianCalendar().getTime();
-                    }
-                    if (arrivalDate == null) {
-                        continue;
-                    } //Sometimes is null? cant really do much?
-                    calendar.setTime(arrivalDate);
-                    int hod = calendar.get(Calendar.HOUR_OF_DAY);
-                    if (hod > 16 || hod < 8) {
-                        continue;
-                    }
-                    long arrivalTimeMillis = arrivalDate.getTime();
-
-                    long lessonTimeMillis = lessonTime.getTime();
-                    long toSpareMinutes = TimeUnit.MILLISECONDS.toMinutes(lessonTimeMillis - arrivalTimeMillis);
-                    long walkTimeMinutes = TimeUnit.SECONDS.toMinutes(walkTimeSeconds);
-
-                    if (toSpareMinutes >= walkTimeMinutes && toSpareMinutes <= walkTimeMinutes + capMinutes) { //arrives within 15-(15 + 60) minutes before lesson
-                        Service arrivalDuplicate = arrivalService;
-                        arrivalDuplicate.setToSpareMinutes(toSpareMinutes);
-                        arrivalDuplicate.setServiceType(ServiceType.HALF_AND_HALF);
-                        arrivalDuplicate.setFromCrs(departureService.getFromCrs());
-                        arrivalDuplicate.setSdt(departureService.getSdt());
-                        arrivalDuplicate.setEtd(departureService.getEtd());
-                        validMixedServices.add(arrivalDuplicate);
-                        System.out.println(toSpareMinutes + " >= " + walkTimeMinutes + " && " + toSpareMinutes + " <= " + (walkTimeMinutes + 60));
-//A service from POO 
-//departs at 2019-01-15T13:37:00.000Z
-//will arrive at BCU at 2019-01-15T13:04:00.000Z
-//in order to get to brock 65 minutes before your lesson at Tue Jan 15 14:10:00 GMT 2019
-                    } else {
-                        //System.out.println(" ");
-                        //System.out.println("to spare millis to minutes (" + lessonTimeMillis + " - " + arrivalTimeMillis + " not bigger than walk time minutes = " + walkTimeMinutes);
-//                        System.out.println("eta to brock = " + arrivalDate);
-//                        System.out.println(" ");
-                    }
-                }
-            }
-        }
-        return validMixedServices;
+        LinkedList<Service> validated = validate(departuresFromStartCrs, arrivalsToEnd, walkTimeSeconds, capMinutes, lessonTime);
+        return validated;
     }
 
     /*
@@ -216,5 +117,113 @@ public class IdealTrains {
         params.setServices("P");
         params.setTimeWindow(1440);
         return params;
+    }
+
+    private static LinkedList<Service> getDepartures(GetBoardByCRSParams departureParams, Action action, ObjectFactory factory, String startCrs, Date fromWhen) throws SOAPException {
+        LinkedList<Service> validDepartures = new LinkedList<>();
+
+        JAXBElement<GetBoardByCRSParams> fromInitialCrsRequest
+                = (JAXBElement<GetBoardByCRSParams>) action.doParams(departureParams);
+
+        SoapRequest departureRequest = new SoapRequest(action, SoapRequest.generateDoc(fromInitialCrsRequest));
+        SoapResponse departureResponse = departureRequest.sendRequestForResponse();
+
+        departureResponse.setAction(departureRequest.getActionString());
+
+        Object jsonFromStartServices = departureResponse.getTrainServices();
+
+        if (jsonFromStartServices == null) {
+            return validDepartures; //empty
+        }
+        if (jsonFromStartServices instanceof JSONArray) { //multiple trains
+            ((JSONArray) jsonFromStartServices)
+                    .toList().forEach(aJSONObjectService -> {
+                        Service service = Service.fromJSONObject(aJSONObjectService, action.getServiceType(), startCrs, "departure");
+                        validDepartures.add(service);
+                    });
+        } else { //singular train service.
+            validDepartures.add(Service.fromJSONObject((JSONObject) jsonFromStartServices, action.getServiceType(), startCrs, "departure"));
+        }
+        return validDepartures;
+    }
+
+    private static LinkedList<Service> getArrivals(GetBoardByCRSParams params, Action action, ObjectFactory factory, String toCrs, Date time) throws SOAPException {
+        LinkedList<Service> validArrivals = new LinkedList<>();
+        JAXBElement<GetBoardByCRSParams> arrivalToBrockRequest
+                = (JAXBElement<GetBoardByCRSParams>) action.doParams(params);
+        SoapRequest arrivalRequest = new SoapRequest(action, SoapRequest.generateDoc(arrivalToBrockRequest));
+        SoapResponse arrivalResponse = arrivalRequest.sendRequestForResponse();
+
+        arrivalResponse.setAction(arrivalRequest.getActionString());
+        Object arrivalsToBrockServices = arrivalResponse.getTrainServices();
+
+        if (arrivalsToBrockServices instanceof JSONArray) { //multiple train services
+            ((JSONArray) arrivalsToBrockServices).toList().forEach(aJSONObjectService -> {
+                Service service = Service.fromJSONObject(aJSONObjectService, action.getServiceType(), "arrival", toCrs);
+                validArrivals.add(service);
+            });
+        } else { //singular train service.
+            validArrivals.add(Service.fromJSONObject((JSONObject) arrivalsToBrockServices, action.getServiceType(), "arrival", toCrs));
+        }
+        return validArrivals;
+    }
+
+    private static LinkedList<Service> validate(LinkedList<Service> departuresFromStartCrs, LinkedList<Service> arrivalsToEnd, int walkTimeSeconds, int capMinutes, Date cutOfftime) {
+        LinkedList<Service> validServices = new LinkedList<>();
+///////Getting valid services///////
+        Calendar calendar = GregorianCalendar.getInstance();
+        for (Service departureService : departuresFromStartCrs) {
+
+            long departureServiceRID = departureService.getRid();
+            for (Service arrivalService : arrivalsToEnd) {
+                long arrivalServiceRID = arrivalService.getRid();
+                if (departureServiceRID == arrivalServiceRID) {
+                    //Service came from initial CRS and arrives at brock
+                    XMLGregorianCalendar xmlEta = arrivalService.getEta();
+                    XMLGregorianCalendar xmlSta = arrivalService.getSta();
+                    XMLGregorianCalendar xmlEtd = arrivalService.getEtd();
+                    XMLGregorianCalendar xmlSdt = arrivalService.getSdt();
+                    Date arrivalDate = null;
+                    if (xmlEta != null) {
+                        arrivalDate = xmlEta.toGregorianCalendar().getTime();
+                    } else if (xmlSta != null) {
+                        arrivalDate = xmlSta.toGregorianCalendar().getTime();
+                    }
+                    if (xmlEtd != null) {
+                        arrivalDate = xmlEtd.toGregorianCalendar().getTime();
+                    } else if (xmlSdt != null) {
+                        arrivalDate = xmlSdt.toGregorianCalendar().getTime();
+                    }
+                    if (arrivalDate == null) {
+                        continue;
+                    } //Sometimes is null? cant really do much?
+                    calendar.setTime(arrivalDate);
+                    int hod = calendar.get(Calendar.HOUR_OF_DAY);
+                    if (hod > 16 || hod < 8) {
+                        continue;
+                    }
+                    long arrivalTimeMillis = arrivalDate.getTime();
+
+                    long lessonTimeMillis = cutOfftime.getTime();
+                    long toSpareMinutes = TimeUnit.MILLISECONDS.toMinutes(lessonTimeMillis - arrivalTimeMillis);
+                    long walkTimeMinutes = TimeUnit.SECONDS.toMinutes(walkTimeSeconds);
+
+                    if (toSpareMinutes >= walkTimeMinutes && toSpareMinutes <= walkTimeMinutes + capMinutes) { //arrives within 15-(15 + 60) minutes before lesson
+                        Service arrivalDuplicate = arrivalService;
+                        arrivalDuplicate.setToSpareMinutes(toSpareMinutes);
+                        arrivalDuplicate.setServiceType(ServiceType.HALF_AND_HALF);
+                        arrivalDuplicate.setFromCrs(departureService.getFromCrs());
+                        arrivalDuplicate.setSdt(departureService.getSdt());
+                        arrivalDuplicate.setEtd(departureService.getEtd());
+                        validServices.add(arrivalDuplicate);
+                        System.out.println(toSpareMinutes + " >= " + walkTimeMinutes + " && " + toSpareMinutes + " <= " + (walkTimeMinutes + capMinutes));
+
+                    } else {
+                        System.out.println("NO NO NO");
+                    }
+                }
+            }
+        }
+        return validServices;
     }
 }
