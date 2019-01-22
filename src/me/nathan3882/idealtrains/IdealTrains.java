@@ -216,10 +216,7 @@ public class IdealTrains {
                         arrivalDuplicate.setSdt(departureService.getSdt());
                         arrivalDuplicate.setEtd(departureService.getEtd());
                         validServices.add(arrivalDuplicate);
-                        System.out.println(toSpareMinutes + " >= " + walkTimeMinutes + " && " + toSpareMinutes + " <= " + (walkTimeMinutes + capMinutes));
-
-                    } else {
-                        System.out.println("NO NO NO");
+                      
                     }
                 }
             }
