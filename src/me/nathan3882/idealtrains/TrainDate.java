@@ -7,6 +7,7 @@ package me.nathan3882.idealtrains;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Objects;
 
 /**
  *
@@ -40,13 +41,13 @@ public class TrainDate {
     }
 
     public int getMinute() {
-        return getCal().get(Calendar.MINUTE);
+        return getDate().getMinutes();
     }
     
     public String withColon() {
         return getHourOfDay() + ":" + getMinute();
     }
     public String withoutColon() {
-        return String.valueOf(getHourOfDay() + getMinute());
+        return String.valueOf(getHourOfDay()) + String.valueOf(getMinute());
     }
 }
