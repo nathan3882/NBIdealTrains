@@ -16,13 +16,14 @@ import java.util.logging.Logger;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
-import org.json.JSONObject;
-
 /**
  *
  * @author natha
  */
 public class Service {
+
+    private final Arrival arrival;
+    private final Departure departure;
 
     public enum ServiceType {
         ARRIVING_TO_END,
@@ -67,10 +68,21 @@ public class Service {
         this.etd = etd;
         this.fromCrs = fromCrs;
         this.toCrs = toCrs;
+        this.arrival = new Arrival(this);
+        this.departure = new Departure(this);
     }
+    
 
     public void setEta(XMLGregorianCalendar eta) {
         this.eta = eta;
+    }
+
+    public XMLGregorianCalendar getEta() {
+        return eta;
+    }
+
+    public XMLGregorianCalendar getSta() {
+        return sta;
     }
 
     public void setSta(XMLGregorianCalendar sta) {
@@ -131,6 +143,14 @@ public class Service {
         return rid;
     }
 
+    public Departure getDeparture() {
+        return departure;
+    }
+
+    public Arrival getArrival() {
+        return this.arrival;
+    }
+
     public XMLGregorianCalendar getSdt() {
         return sdt;
     }
@@ -145,14 +165,6 @@ public class Service {
 
     public String getOperator() {
         return operator;
-    }
-
-    public XMLGregorianCalendar getEta() {
-        return eta;
-    }
-
-    public XMLGregorianCalendar getSta() {
-        return sta;
     }
 
     public ServiceType getServiceType() {
@@ -178,4 +190,12 @@ public class Service {
     public void setToSpareMinutes(long toSpareMinutes) {
         this.toSpareMinutes = toSpareMinutes;
     }
+
+    @Override
+    public String toString() { // "{ crs: "BMH" : "10:05", arrival: "11:05" };" //crs = homeCrs, d = departure time, a = arrival to brock time
+        return "{crs: \"" + getFromCrs() + "\", " + 
+                "arrival: \"" + getArrival().singular().withColon() + "\", " +
+                "departure: \"" + getDeparture().singular().withColon() + "\"};";
+    }
+    
 }

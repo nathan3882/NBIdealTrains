@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.jws.WebService;
 import javax.xml.bind.JAXBElement;
 import javax.xml.datatype.DatatypeFactory;
@@ -65,6 +66,8 @@ public class IdealTrains {
         }
         if (services.isEmpty()) {
             //No services
+        } else {
+            System.out.print("h=" + services.get(0).getEta().getHour() + " m=" + services.get(0).getEta().getMinute());
         }
     }
 
@@ -171,38 +174,22 @@ public class IdealTrains {
     private static LinkedList<Service> validate(LinkedList<Service> departuresFromStartCrs, LinkedList<Service> arrivalsToEnd, int walkTimeSeconds, int capMinutes, Date cutOfftime) {
         LinkedList<Service> validServices = new LinkedList<>();
 ///////Getting valid services///////
-        Calendar calendar = GregorianCalendar.getInstance();
-        for (Service departureService : departuresFromStartCrs) {
 
+        for (Service departureService : departuresFromStartCrs) {
+            System.out.println(departureService.getDeparture().singular().getHourOfDay());
+            if (departureService.getDeparture().singular().getHourOfDay() >= 16) continue;
             long departureServiceRID = departureService.getRid();
             for (Service arrivalService : arrivalsToEnd) {
+                if (arrivalService.getArrival().singular().getHourOfDay() <= 8) continue;
                 long arrivalServiceRID = arrivalService.getRid();
                 if (departureServiceRID == arrivalServiceRID) {
+
                     //Service came from initial CRS and arrives at brock
-                    XMLGregorianCalendar xmlEta = arrivalService.getEta();
-                    XMLGregorianCalendar xmlSta = arrivalService.getSta();
-                    XMLGregorianCalendar xmlEtd = arrivalService.getEtd();
-                    XMLGregorianCalendar xmlSdt = arrivalService.getSdt();
-                    Date arrivalDate = null;
-                    if (xmlEta != null) {
-                        arrivalDate = xmlEta.toGregorianCalendar().getTime();
-                    } else if (xmlSta != null) {
-                        arrivalDate = xmlSta.toGregorianCalendar().getTime();
-                    }
-                    if (xmlEtd != null) {
-                        arrivalDate = xmlEtd.toGregorianCalendar().getTime();
-                    } else if (xmlSdt != null) {
-                        arrivalDate = xmlSdt.toGregorianCalendar().getTime();
-                    }
+                    TrainDate arrivalDate = arrivalService.getArrival().singular();
                     if (arrivalDate == null) {
-                        continue;
-                    } //Sometimes is null? cant really do much?
-                    calendar.setTime(arrivalDate);
-                    int hod = calendar.get(Calendar.HOUR_OF_DAY);
-                    if (hod > 16 || hod < 8) {
-                        continue;
+                        continue; //Sometimes is null? cant really do much?
                     }
-                    long arrivalTimeMillis = arrivalDate.getTime();
+                    long arrivalTimeMillis = arrivalDate.getDate().getTime();
 
                     long lessonTimeMillis = cutOfftime.getTime();
                     long toSpareMinutes = TimeUnit.MILLISECONDS.toMinutes(lessonTimeMillis - arrivalTimeMillis);
@@ -216,7 +203,7 @@ public class IdealTrains {
                         arrivalDuplicate.setSdt(departureService.getSdt());
                         arrivalDuplicate.setEtd(departureService.getEtd());
                         validServices.add(arrivalDuplicate);
-                      
+
                     }
                 }
             }
