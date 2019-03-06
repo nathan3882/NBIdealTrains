@@ -45,9 +45,9 @@ public class TrainDate {
     }
     
     public String withColon() {
-        return getHourOfDay() + ":" + getMinute();
+        return getHourOfDay() + ":" + IdealTrains.getPrettyMinute(getMinute());
     }
     public String withoutColon() {
-        return String.valueOf(getHourOfDay()) + String.valueOf(getMinute());
+        return String.valueOf(getHourOfDay()) + IdealTrains.getPrettyMinute(getMinute());
     }
 }
