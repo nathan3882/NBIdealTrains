@@ -33,6 +33,11 @@ public class Departure {
     public XMLGregorianCalendar getSdt() {
         return sdt;
     }
+    
+    public boolean isNullSingular() {
+        return getEtd() == null && getSdt() == null;
+    }
+    
     public TrainDate singular() {
         Date departureDate = null;
         if (getEtd()!= null) {

@@ -23,6 +23,7 @@ public class Arrival {
         this.eta = arrivalService.getEta();
         this.sta = arrivalService.getSta();
     }
+
     public TrainDate singular() {
         Date arrivalDate = null;
         if (getEta() != null) {
@@ -35,6 +36,10 @@ public class Arrival {
 
     public Service getArrivalService() {
         return arrivalService;
+    }
+
+    public boolean isNullSingular() {
+        return getEta() == null && getSta() == null;
     }
 
     public XMLGregorianCalendar getEta() {
