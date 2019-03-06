@@ -16,14 +16,15 @@ import java.util.logging.Logger;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
+
 /**
  *
  * @author natha
  */
 public class Service {
 
-    private final Arrival arrival;
-    private final Departure departure;
+    private Arrival arrival;
+    private Departure departure;
 
     public enum ServiceType {
         ARRIVING_TO_END,
@@ -71,7 +72,14 @@ public class Service {
         this.arrival = new Arrival(this);
         this.departure = new Departure(this);
     }
-    
+
+    public void setDeparture(Departure departure) {
+        this.departure = departure;
+    }
+
+    public void setArrival(Arrival arrival) {
+        this.arrival = arrival;
+    }
 
     public void setEta(XMLGregorianCalendar eta) {
         this.eta = eta;
@@ -193,9 +201,16 @@ public class Service {
 
     @Override
     public String toString() { // "{ crs: "BMH" : "10:05", arrival: "11:05" };" //crs = homeCrs, d = departure time, a = arrival to brock time
-        return "{crs: \"" + getFromCrs() + "\", " + 
-                "arrival: \"" + getArrival().singular().withColon() + "\", " +
-                "departure: \"" + getDeparture().singular().withColon() + "\"};";
+        return "{crs: \"" + getFromCrs() + "\", "
+                + "arrival: \"" + getArrival().singular().withColon() + "\", "
+                + "departure: \"" + getDeparture().singular().withColon() + "\"};";
     }
     
+    public String toString(int difFromLesson) { // "{ crs: "BMH" : "10:05", arrival: "11:05" };" //crs = homeCrs, d = departure time, a = arrival to brock time
+        return "{crs: \"" + getFromCrs() + "\", "
+                + "arrival: \"" + getArrival().singular().withColon() + "\", "
+                + "departure: \"" + getDeparture().singular().withColon() + "\","
+                + "walk: \"" + difFromLesson + "\"};";
+    }
+
 }
